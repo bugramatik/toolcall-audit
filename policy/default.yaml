@@ -1,0 +1,94 @@
+# Default policy for toolcall-audit.
+#
+# Every rule names one tool and the decision it produces when its `when`
+# conditions all match the call's arguments. Rules are evaluated in order and
+# the first matching rule wins, so put narrow rules above broad ones. A call
+# that matches no rule gets `default`.
+
+version: 1
+default: review
+
+rules:
+  - name: read-file-inside-workspace
+    tool: file.read
+    decision: allow
+    when:
+      path_prefix: /workspace/
+
+  - name: read-file-outside-workspace
+    tool: file.read
+    decision: deny
+    when:
+      path_prefix: /
+
+  - name: write-file-inside-workspace
+    tool: file.write
+    decision: allow
+    when:
+      path_prefix: /workspace/
+
+  - name: write-file-outside-workspace
+    tool: file.write
+    decision: deny
+    when:
+      path_prefix: /
+
+  - name: shell-read-only-command
+    tool: shell.exec
+    decision: allow
+    when:
+      command_in:
+        - ls
+        - cat
+        - grep
+        - git status
+        - git diff
+
+  - name: shell-destructive-command
+    tool: shell.exec
+    decision: deny
+    when:
+      command_in:
+        - rm -rf
+        - shutdown
+        - mkfs
+
+  - name: shell-any-other-command
+    tool: shell.exec
+    decision: review
+    when: {}
+
+  - name: http-get-to-allowlisted-host
+    tool: http.request
+    decision: allow
+    when:
+      method: GET
+      host_in:
+        - docs.example.com
+        - api.example.com
+
+  - name: http-write-method
+    tool: http.request
+    decision: review
+    when:
+      method_in:
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+
+  - name: database-read-query
+    tool: db.query
+    decision: allow
+    when:
+      statement_prefix: SELECT
+
+  - name: database-mutating-query
+    tool: db.query
+    decision: deny
+    when:
+      statement_prefix:
+        - UPDATE
+        - DELETE
+        - DROP
+        - TRUNCATE

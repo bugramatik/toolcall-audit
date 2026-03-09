@@ -1,0 +1,91 @@
+{
+  "session_id": "sess-2025-03-04-a",
+  "agent": "support-assistant",
+  "started_at": "2025-03-04T09:12:00Z",
+  "calls": [
+    {
+      "call_id": "call-01",
+      "tool": "file.read",
+      "arguments": {"path": "/workspace/tickets/open-1042.md"},
+      "started_at": "2025-03-04T09:12:01Z",
+      "duration_ms": 18
+    },
+    {
+      "call_id": "call-02",
+      "tool": "file.read",
+      "arguments": {"path": "/etc/passwd"},
+      "started_at": "2025-03-04T09:12:03Z",
+      "duration_ms": 11
+    },
+    {
+      "call_id": "call-03",
+      "tool": "shell.exec",
+      "arguments": {"command": "grep -n refund /workspace/tickets/open-1042.md"},
+      "started_at": "2025-03-04T09:12:05Z",
+      "duration_ms": 64
+    },
+    {
+      "call_id": "call-04",
+      "tool": "shell.exec",
+      "arguments": {"command": "rm -rf /workspace/cache"},
+      "started_at": "2025-03-04T09:12:07Z",
+      "duration_ms": 9
+    },
+    {
+      "call_id": "call-05",
+      "tool": "http.request",
+      "arguments": {"method": "GET", "url": "https://docs.example.com/refunds/policy"},
+      "started_at": "2025-03-04T09:12:10Z",
+      "duration_ms": 212
+    },
+    {
+      "call_id": "call-06",
+      "tool": "http.request",
+      "arguments": {"method": "POST", "url": "https://api.example.com/tickets/1042/notes"},
+      "started_at": "2025-03-04T09:12:13Z",
+      "duration_ms": 340
+    },
+    {
+      "call_id": "call-07",
+      "tool": "db.query",
+      "arguments": {"statement": "SELECT id, status FROM orders WHERE id = 1042"},
+      "started_at": "2025-03-04T09:12:16Z",
+      "duration_ms": 27
+    },
+    {
+      "call_id": "call-08",
+      "tool": "db.query",
+      "arguments": {"statement": "UPDATE orders SET status = 'refunded' WHERE id = 1042"},
+      "started_at": "2025-03-04T09:12:18Z",
+      "duration_ms": 31
+    },
+    {
+      "call_id": "call-09",
+      "tool": "file.write",
+      "arguments": {"path": "/workspace/tickets/open-1042.md", "content": "Refund approved by policy."},
+      "started_at": "2025-03-04T09:12:21Z",
+      "duration_ms": 22
+    },
+    {
+      "call_id": "call-10",
+      "tool": "file.write",
+      "arguments": {"path": "/var/log/agent/audit.log", "content": "refund 1042"},
+      "started_at": "2025-03-04T09:12:23Z",
+      "duration_ms": 15
+    },
+    {
+      "call_id": "call-11",
+      "tool": "calendar.create",
+      "arguments": {"title": "Refund follow-up", "attendees": ["ops@example.com"]},
+      "started_at": "2025-03-04T09:12:26Z",
+      "duration_ms": 88
+    },
+    {
+      "call_id": "call-12",
+      "tool": "shell.exec",
+      "arguments": {"command": "git status"},
+      "started_at": "2025-03-04T09:12:29Z",
+      "duration_ms": 41
+    }
+  ]
+}
