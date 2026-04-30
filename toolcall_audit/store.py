@@ -72,3 +72,105 @@ class VerdictRow(Base):
 
     call: Mapped[CallRow] = relationship(back_populates="verdict")
 
+
+def make_engine(url: str) -> Engine:
+    """Build an engine for a SQLAlchemy URL; SQLite URLs get a shared connection."""
+    if url.startswith("sqlite"):
+        return create_engine(url, connect_args={"check_same_thread": False}, future=True)
+    return create_engine(url, pool_pre_ping=True, future=True)
+
+
+def init_db(engine: Engine) -> None:
+    """Create the tables when they do not exist yet."""
+    Base.metadata.create_all(engine)
+
+
+def save_report(engine: Engine, report: SessionReport) -> None:
+    """Persist a report, replacing any earlier rows for the same session."""
+    verdicts = {verdict.call_id: verdict for verdict in report.verdicts}
+    with OrmSession(engine) as db:
+        db.execute(delete(SessionRow).where(SessionRow.session_id == report.session_id))
+        db.flush()
+
+        row = SessionRow(
+            session_id=report.session_id,
+            agent=report.agent,
+            started_at=report.started_at,
+            total=report.total,
+            allowed=report.allowed,
+            review=report.review,
+            denied=report.denied,
+            drift=json.dumps(report.drift),
+        )
+        db.add(row)
+
+        for position, call in enumerate(report.calls):
+            call_row = CallRow(
+                session_id=report.session_id,
+                position=position,
+                call_id=call.call_id,
+                tool=call.tool,
+                arguments=json.dumps(call.arguments, sort_keys=True),
+                started_at=call.started_at,
+                duration_ms=call.duration_ms,
+            )
+            db.add(call_row)
+            db.flush()
+            verdict = verdicts.get(call.call_id)
+            if verdict is not None:
+                db.add(
+                    VerdictRow(
+                        call_pk=call_row.id,
+                        call_id=verdict.call_id,
+                        tool=verdict.tool,
+                        decision=verdict.decision,
+                        rule=verdict.rule,
+                        reason=verdict.reason,
+                    )
+                )
+        db.commit()
+
+
+def load_report(engine: Engine, session_id: str) -> SessionReport | None:
+    """Rebuild a stored report, or return None when the session is unknown."""
+    with OrmSession(engine) as db:
+        row = db.get(SessionRow, session_id)
+        if row is None:
+            return None
+        calls = list(db.scalars(select(CallRow).where(CallRow.session_id == session_id).order_by(CallRow.position)))
+        verdicts = [
+            Verdict(
+                call_id=call.verdict.call_id,
+                tool=call.verdict.tool,
+                decision=call.verdict.decision,
+                rule=call.verdict.rule,
+                reason=call.verdict.reason,
+            )
+            for call in calls
+            if call.verdict is not None
+        ]
+        return SessionReport(
+            session_id=row.session_id,
+            agent=row.agent,
+            started_at=row.started_at,
+            total=row.total,
+            allowed=row.allowed,
+            review=row.review,
+            denied=row.denied,
+            verdicts=verdicts,
+            drift=json.loads(row.drift or "[]"),
+            calls=[_call_from_row(call) for call in calls],
+        )
+
+
+def _call_from_row(row: CallRow) -> Any:
+    """Turn a stored call row back into the Pydantic model the report uses."""
+    from toolcall_audit.models import ToolCall
+
+    return ToolCall(
+        call_id=row.call_id,
+        tool=row.tool,
+        arguments=json.loads(row.arguments or "{}"),
+        started_at=row.started_at,
+        duration_ms=row.duration_ms,
+    )
